@@ -4,9 +4,9 @@ from nss_handler import HandleRequests, status
 
 
 # Add your imports below this line
-from views import list_docks, retrieve_dock, delete_dock, update_dock
-from views import list_haulers, retrieve_hauler, delete_hauler, update_hauler
-from views import list_ships, retrieve_ship, delete_ship, update_ship
+from views import list_docks, retrieve_dock, delete_dock, update_dock, create_dock
+from views import list_haulers, retrieve_hauler, delete_hauler, update_hauler, create_hauler
+from views import list_ships, retrieve_ship, delete_ship, update_ship,create_ship
 
 
 class JSONServer(HandleRequests):
@@ -39,7 +39,7 @@ class JSONServer(HandleRequests):
                 response_body = retrieve_ship(url["pk"])
                 return self.response(response_body, status.HTTP_200_SUCCESS.value)
 
-            response_body = list_ships()
+            response_body = list_ships(url)
             return self.response(response_body, status.HTTP_200_SUCCESS.value)
 
         else:
@@ -112,8 +112,32 @@ class JSONServer(HandleRequests):
 
     def do_POST(self):
         """Handle POST requests from a client"""
+        # Get content length and read the request body
+        content_len = int(self.headers.get('content-length', 0))
+        request_body = self.rfile.read(content_len)
+        data = json.loads(request_body)
+        url = self.parse_url(self.path)
 
-        pass
+        if url["requested_resource"] == "docks":
+            response_body = create_dock(data)
+            if response_body:
+                return self.response(response_body, status.HTTP_201_SUCCESS_CREATED.value)
+            return self.response("Resource not found", status.HTTP_404_CLIENT_ERROR_RESOURCE_NOT_FOUND.value)
+        
+        elif url["requested_resource"] == "haulers":
+            response_body = create_hauler(data)
+            if response_body:
+                return self.response(response_body, status.HTTP_201_SUCCESS_CREATED.value)
+            return self.response("Resource not found", status.HTTP_404_CLIENT_ERROR_RESOURCE_NOT_FOUND.value)
+        
+        elif url["requested_resource"] == "ships":
+            response_body = create_ship(data)
+            if response_body:
+                return self.response("", status.HTTP_201_SUCCESS_CREATED.value)
+            return self.response("Resource not found", status.HTTP_404_CLIENT_ERROR_RESOURCE_NOT_FOUND.value)
+
+        else:
+            return self.response("Resource not found", status.HTTP_400_CLIENT_ERROR_BAD_REQUEST_DATA.value)
 
 
 

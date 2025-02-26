@@ -35,31 +35,58 @@ def delete_ship(pk):
     return True if number_of_rows_deleted > 0 else False
 
 
-def list_ships():
+def list_ships(url):
     # Open a connection to the database
     with sqlite3.connect("./shipping.db") as conn:
         conn.row_factory = sqlite3.Row
         db_cursor = conn.cursor()
 
-        # Write the SQL query to get the information you want
-        db_cursor.execute("""
-        SELECT
-            s.id,
-            s.name,
-            s.hauler_id
-        FROM Ship s
-        """)
+        if url["query_params"]:
+            if  url["query_params"]["_expand"]==["hauler"]:
+                
+                db_cursor.execute("""
+                    SELECT
+                        s.id,
+                        s.name,
+                        s.hauler_id,
+                        h.id AS haulerId,
+                        h.name AS haulerName,
+                        h.dock_id
+                    FROM Ship s
+                    JOIN Hauler h ON h.id = s.hauler_id
+                """)
+            else:
+                db_cursor.execute("""
+                    SELECT
+                        s.id,
+                        s.name,
+                        s.hauler_id
+                    FROM Ship s
+                """)
+
         query_results = db_cursor.fetchall()
 
-        # Initialize an empty list and then add each dictionary to it
-        ships=[]
+         # Convert rows into a list of dictionaries with additional logic to append hauler info
+        ships = []
         for row in query_results:
-            ships.append(dict(row))
+            hauler = {
+                "id": row['haulerId'],
+                "name": row['haulerName'],
+                "dock_id": row["dock_id"]
+            }
+            ship = {
+                "id": row['id'],
+                "name": row['name'],
+                "hauler_id": row["hauler_id"],
+                "hauler": hauler  # Add hauler information to the ship
+            }
+            ships.append(ship)
 
         # Serialize Python list to JSON encoded string
         serialized_ships = json.dumps(ships)
 
     return serialized_ships
+
 
 def retrieve_ship(pk):
     # Open a connection to the database
@@ -83,3 +110,18 @@ def retrieve_ship(pk):
         serialized_ship = json.dumps(dictionary_version_of_object)
 
     return serialized_ship
+
+def create_ship(ship_data):
+    with sqlite3.connect("./shipping.db") as conn:
+        db_cursor = conn.cursor()
+
+        db_cursor.execute(
+            """
+            INSERT INTO Ship (name,hauler_id)
+            VALUES(?,?)
+            """,
+            (ship_data['name'], ship_data['hauler_id'])
+        )
+    
+    return True if db_cursor.rowcount > 0 else False
+
